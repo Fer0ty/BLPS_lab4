@@ -20,24 +20,33 @@ public class CheckChangePetitionDelegate implements JavaDelegate {
         this.petitionRepository = petitionRepository;
     }
 
-    private boolean isPresent(Long id){
+    private boolean isPresent(Long id) {
         return petitionRepository.existsById((id));
     }
 
-    private boolean isStatusCorrect(Long id){
+    private boolean isStatusCorrect(Long id) {
         Petition petition = petitionRepository.findById(id).orElseThrow(() -> new BpmnError("Такого быть не должно"));
         return petition.getApproveStatus().equals("ON_HOLD");
     }
+
+    private boolean isUserOk(DelegateExecution delegateExecution) {
+        if (!delegateExecution.getProcessEngineServices().getIdentityService().getCurrentAuthentication().getGroupIds().contains("moders")) {
+            throw new BpmnError("TThis user does not have access to this feature.");
+        }
+        return true;
+    }
+
     @Override
     public void execute(DelegateExecution delegateExecution) throws Exception {
         Long id = (Long) delegateExecution.getVariable("petition_id");
         log.info("Получен id петиции: {}", id);
-        if (isPresent(id)){
-            if (!isStatusCorrect(id)){
+        if (isUserOk(delegateExecution))
+            if (isPresent(id)) {
+                if (!isStatusCorrect(id)) {
+                    throw new BpmnError("Петиции с таким id не существует");
+                }
+            } else {
                 throw new BpmnError("Петиции с таким id не существует");
             }
-        } else {
-            throw new BpmnError("Петиции с таким id не существует");
-        }
     }
 }
